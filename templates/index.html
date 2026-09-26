@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="card">
+    <h2>Analyze an FPL Podcast</h2>
+    <p class="muted">
+        Upload a podcast episode (MP3, WAV, M4A, OGG, FLAC), or leave the input
+        empty to analyze the default sample clip.
+    </p>
+
+    <form action="{{ url_for('analyze') }}" method="post"
+          enctype="multipart/form-data" class="upload-form">
+
+        <label for="audio" class="file-drop">
+            <input type="file" id="audio" name="audio"
+                   accept=".mp3,.wav,.m4a,.ogg,.flac">
+            <div class="file-drop-inner">
+                <span class="file-icon">📁</span>
+                <span class="file-text">Click to choose an audio file</span>
+                <span class="file-hint">or leave empty to use the sample</span>
+            </div>
+        </label>
+
+        <button type="submit" class="btn-primary">Analyze Podcast →</button>
+    </form>
+
+    <div class="notice">
+        <strong>⏱️ Please be patient.</strong>
+        Whisper and Llama 3.1 run locally on CPU. A 10-minute clip takes
+        approximately 5–6 minutes to process end-to-end.
+    </div>
+
+    <h3>What this dashboard shows</h3>
+    <ul class="feature-list">
+        <li><strong>Model 1 — Audio:</strong> Whisper transcription summarised by Llama 3.1</li>
+        <li><strong>Model 2 — Sentiment:</strong> VADER + FPL keyword override on live Reddit data</li>
+        <li><strong>Model 3 — Statistics:</strong> Linear Regression trained on the FPL API</li>
+        <li><strong>Orchestrator:</strong> Per-player decisions combining all three signals</li>
+    </ul>
+</section>
+
+{% endblock %}

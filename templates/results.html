@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Results — FPL AI Advisor{% endblock %}
+
+{% block content %}
+
+<!-- ============ HEADER SUMMARY ============ -->
+<section class="summary-bar">
+    <div>
+        <h2>Analysis Complete</h2>
+        <p class="muted small">{{ audio_path }}</p>
+    </div>
+    <div class="timings">
+        {% for k, v in timings.items() %}
+            <span class="chip timing-chip{% if k == 'TOTAL' %} chip-total{% endif %}">
+                {{ k }}: {{ v }}s
+            </span>
+        {% endfor %}
+    </div>
+</section>
+
+{% if errors %}
+<section class="card error-card">
+    <h3>⚠️ Warnings</h3>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<!-- ============ MODEL 1: AUDIO ============ -->
+<section class="card model-card">
+    <div class="model-header">
+        <span class="model-badge badge-audio">MODEL 1</span>
+        <h2>🎵 Audio Analysis</h2>
+        <span class="model-sub">Whisper (ASR) → Llama 3.1 (summarisation)</span>
+    </div>
+    <div class="model-body">
+        <h3>Summary</h3>
+        <pre class="summary-text">{{ audio.summary }}</pre>
+
+        <h3>Players Detected ({{ audio.detected_players|length }})</h3>
+        {% if audio.detected_players %}
+            <div class="chip-row">
+            {% for p in audio.detected_players %}
+                <span class="chip">{{ p }}</span>
+            {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No indexed players detected in the audio summary.</p>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ============ MODEL 2: SENTIMENT ============ -->
+<section class="card model-card">
+    <div class="model-header">
+        <span class="model-badge badge-sentiment">MODEL 2</span>
+        <h2>🐦 Social Sentiment</h2>
+        <span class="model-sub">VADER + FPL keyword override · live Reddit r/FantasyPL</span>
+    </div>
+    <div class="model-body">
+        <p>
+            <strong>Overall:</strong>
+            <span class="badge badge-{{ sentiment.overall.label|lower }}">
+                {{ sentiment.overall.label }} ({{ sentiment.overall.score }})
+            </span>
+        </p>
+
+        {% if sentiment.per_player %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Sentiment</th>
+                    <th>Score</th>
+                    <th>Reddit Posts</th>
+                    <th>Sample Title</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for name, s in sentiment.per_player.items() %}
+                <tr>
+                    <td><strong>{{ name }}</strong></td>
+                    <td><span class="badge badge-{{ s.label|lower }}">{{ s.label }}</span></td>
+                    <td>{{ "%.2f"|format(s.score) }}</td>
+                    <td>{{ s.post_count }}</td>
+                    <td class="small muted">
+                        {% if s.sample_titles and s.sample_titles|length > 0 %}
+                            {{ s.sample_titles[0][:70] }}{% if s.sample_titles[0]|length > 70 %}…{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="muted">No players were surfaced for sentiment analysis.</p>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ============ MODEL 3: ML ============ -->
+<section class="card model-card">
+    <div class="model-header">
+        <span class="model-badge badge-ml">MODEL 3</span>
+        <h2>📊 Statistical Predictions</h2>
+        <span class="model-sub">Linear Regression on FPL API data (form + minutes)</span>
+    </div>
+    <div class="model-body">
+        <p>
+            <strong>Model MSE:</strong>
+            {% if ml.mse is not none %}{{ "%.3f"|format(ml.mse) }}{% else %}N/A{% endif %}
+            <span class="muted small">(points per gameweek)</span>
+        </p>
+
+        {% if ml.top_predictions %}
+        <h3>Top 10 Predicted Players (per gameweek)</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Predicted Pts/GW</th>
+                    <th>Form</th>
+                    <th>Minutes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in ml.top_predictions[:10] %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ row.name }}</strong></td>
+                    <td>{{ row.team }}</td>
+                    <td class="num">{{ "%.2f"|format(row.predicted_points) }}</td>
+                    <td>{{ "%.1f"|format(row.form) }}</td>
+                    <td>{{ row.minutes }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="muted">No predictions available.</p>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ============ ORCHESTRATOR ============ -->
+<section class="card orchestrator-card">
+    <div class="model-header">
+        <span class="model-badge badge-orch">ORCHESTRATOR</span>
+        <h2>🧠 Final Recommendations</h2>
+        <span class="model-sub">Combines all three signals via decision rules</span>
+    </div>
+    <div class="model-body">
+        {% if orchestration.decisions %}
+            <div class="decision-grid">
+            {% for d in orchestration.decisions %}
+                {% set slug = d.decision|lower|replace(' ', '-') %}
+                <div class="decision-card decision-{{ slug }}">
+                    <div class="decision-header">
+                        <span class="decision-emoji">
+                            {% if d.decision == 'AVOID' %}🚫
+                            {% elif d.decision == 'TRANSFER IN' %}✅
+                            {% elif d.decision == 'CONSIDER' %}💡
+                            {% elif d.decision == 'MONITOR' %}👀
+                            {% else %}⏸{% endif %}
+                        </span>
+                        <div class="decision-title">
+                            <h3>{{ d.name }}</h3>
+                            <span class="team">{{ d.team }}</span>
+                        </div>
+                        <span class="decision-badge">{{ d.decision }}</span>
+                    </div>
+                    <p class="reason">{{ d.reason }}</p>
+                    <div class="decision-meta">
+                        <span class="meta-item">
+                            <strong>Sentiment:</strong>
+                            <span class="badge badge-{{ d.sentiment|lower }} small-badge">{{ d.sentiment }}</span>
+                            ({{ "%.2f"|format(d.sentiment_score) }})
+                        </span>
+                        <span class="meta-item"><strong>Reddit posts:</strong> {{ d.post_count }}</span>
+                        <span class="meta-item">
+                            <strong>Injury in audio:</strong>
+                            {{ "Yes" if d.injury_in_audio else "No" }}
+                        </span>
+                        <span class="meta-item">
+                            <strong>Predicted:</strong>
+                            {% if d.predicted_points is not none %}
+                                {{ "%.2f"|format(d.predicted_points) }} pts/GW
+                            {% else %}
+                                —
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">
+                No decisions were produced for this input.
+                Try a different podcast clip.
+            </p>
+        {% endif %}
+    </div>
+</section>
+
+<div class="actions">
+    <a href="{{ url_for('index') }}" class="btn-primary">← Analyze another clip</a>
+</div>
+
+{% endblock %}
