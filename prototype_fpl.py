@@ -2,14 +2,7 @@
 """
 FPL AI Orchestration — Improved prototype (v5).
 
-Changes vs. v4:
-  - Injury detection now honours recovery/return phrases
-    ("returned from injury" no longer flags a player as injured).
-  - Added alias "gross" -> "Groß" to map Whisper's ASCII output
-    to the accented FPL web_name.
 
-Install dependencies:
-  pip install feedparser
 """
 
 import os
@@ -181,8 +174,7 @@ def build_player_index(players):
             key = _normalise(cand)
             if len(key) < 3:
                 continue
-            # Prefer entries with longer display names (avoids collisions
-            # like "Fernandes" mapping to a lesser-known Fernandes)
+            
             if key in index:
                 if len(display) < len(index[key]["display"]):
                     continue
